@@ -1,0 +1,24 @@
+# dsh-codex-bridge bundle layer: mount the Codex bridge plugin.
+#
+# `name` resolves through the booted profile's node_modules, so the plugin must
+# be linked there first:
+#
+#   cp -r dsh-codex-bridge ~/.dsh/local-plugins/
+#   ln -s ../../../local-plugins/dsh-codex-bridge ~/.dsh/profiles/web/node_modules/dsh-codex-bridge
+#   mkdir -p ~/.dsh/local-plugins/dsh-codex-bridge/node_modules/@deepseek-ai
+#   ln -s /home/river/.npm-global/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-tools \
+#         ~/.dsh/local-plugins/dsh-codex-bridge/node_modules/@deepseek-ai/dsh-tools
+#   ln -s /home/river/.npm-global/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/schemastery \
+#         ~/.dsh/local-plugins/dsh-codex-bridge/node_modules/@deepseek-ai/schemastery
+#
+# Config overrides live in the profile layer (~/.dsh/profiles/web/cordis.patch.yml):
+#   - id: codex-bridge
+#     config: { mode: daemon }
+- insert:
+    - id: codex-bridge
+      name: 'dsh-codex-bridge'
+      config:
+        codexBin: codex
+        mode: private
+        planTimeoutMs: 300000
+        askTimeoutMs: 180000

@@ -1,0 +1,22 @@
+{
+  "name": "dsh-codex-bridge",
+  "description": "Bridge the DeepSeek Harness to Codex (CLI / desktop) over the codex app-server JSON-RPC protocol: Codex plans, DSH executes, both sides can discuss.",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./src/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "smoke": "node test/smoke.mjs",
+    "check-protocol": "bash scripts/check-protocol.sh"
+  },
+  "license": "MIT"
+}
