@@ -1,0 +1,30 @@
+{
+  "capturedAt": "2026-09-23T10:51:38.294Z",
+  "planId": "real-parallel-20260923",
+  "tasks": [
+    {
+      "id": "alpha",
+      "state": "running",
+      "sessionId": "bridge-dd7f2725ba1ee1cefbd16661e9b2e309",
+      "worktree": {
+        "path": "/home/river/work/dsh/dsh-codex-bridge/.dsh-codex-bridge/e2e/.worktrees/bridge-real-parallel-20260923-alpha",
+        "branch": "bridge/real-parallel-20260923/alpha",
+        "base": "361384786cb81c7ea5820c4efabe6767718578ae"
+      }
+    },
+    {
+      "id": "beta",
+      "state": "running",
+      "sessionId": "bridge-3f11babf5107e17ed89b4a7eb1c41524",
+      "worktree": {
+        "path": "/home/river/work/dsh/dsh-codex-bridge/.dsh-codex-bridge/e2e/.worktrees/bridge-real-parallel-20260923-beta",
+        "branch": "bridge/real-parallel-20260923/beta",
+        "base": "361384786cb81c7ea5820c4efabe6767718578ae"
+      }
+    },
+    {
+      "id": "integration",
+      "state": "pending"
+    }
+  ]
+}

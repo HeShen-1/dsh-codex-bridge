@@ -1,187 +1,58 @@
-# dsh-codex-bridge — 设计文档 (v0.1 skeleton)
+# DSH–Codex 桥接设计 v0.2
 
-Status: design frozen, implementation = skeleton only.
-Owner: DSH side plugin. Counterpart: Codex CLI/Desktop `app-server`.
+2026-09-23，用户确认 Q1–Q17 及最终实施方案。旧 v0.1 骨架保留在 Git 初始提交 `04bc211`。本文件描述现行设计，不把未验证部分写成可用保证。
 
-## 1. 目标
+## 已批准约束
 
-让 DSH 与 Codex 桌面端成为同一工作流里的两个角色：
+Codex 桌面真实任务是入口；Codex 规划、只读复核，DSH 修改与测试；Git 协调操作由桥接执行。允许完成原目标所需的自动拆分与修订，范围或访问变化交还用户。无 Git 则初始化；首次提交先确认清单，初始化或基线失败禁止派发。已有未提交修改不自动纳入 worktree。相同仓库不意味着必须相同物理目录，允许独立 worktree 并行。没有远端允许本地执行。简单计划可以不使用 issue；远端交付须明确仓库、目标分支及交付方式。模型与推理由人工设置，插件不修改、不做费用管理。每个计划最多三次修订，连续两次同类阻塞且无进展则停止；不能通过另起计划规避上限。
 
-1. **Codex 规划, DeepSeek 执行** — Codex 产出计划, DSH 执行并把结果回流。
-2. **互相讨论** — 任一方可以提问, 另一方回答, 用户可在两端围观。
-3. **用户可接管** — Codex 侧的会话是桌面端真实线程, 用户能直接插手继续聊。
+## 入口与所有权
 
-非目标: 不替换任一端 UI, 不自动执行 Codex 产出的写操作。
+- `src/index.js`：DSH Cordis 插件，注入公开的 SessionController、WorkspaceController、Agent 与默认模型服务。
+- `src/transport.js`：同用户 Unix HTTP socket；只接受 `/rpc`，禁止浏览器 Origin，不监听网络端口。
+- `bin/mcp.mjs` / `src/mcp-tools.js`：Codex MCP 工具及人类授权、独立复核说明。CLI 调用同一服务。
+- `src/dsh-backend.js`：DSH 适配器；使用 `workspace.workspaceId`，创建后查真实 session cwd，匹配获批 worktree 才发送请求。不调用 selectModel。
+- `src/jobs.js`：先持久保存身份再派发，串行处理相同 ID；DSH requestId 负责消息去重。模型完成为 submitted，不等于 accepted。
+- `src/repository.js`：基线确认、worktree、内容与文件范围检查、Git checkpoint。
+- `src/plans.js`：获批计划、依赖和并发调度、复核、整体修订预算、停止及状态恢复。
+- `src/forge.js`：显式 GitHub/GitLab 目标、远端创建意图、查重、推送验证和草稿交付；无合并入口。
 
-## 2. 为什么走 app-server 协议
+不读取 Codex 私有 socket，不写两端私有会话数据库。使用公开 DSH 服务读取会话事件；本机调查过程中曾只读检查专用测试会话的持久日志，运行实现不依赖其存储格式。
 
-Codex CLI 0.154.0 自带 `codex app-server`: 一个本地 JSON-RPC 服务, 协议**有官方 schema 可生成**。
+## 状态与幂等
 
-```bash
-codex app-server generate-json-schema --out <DIR>   # 39 个顶层文件 + v1/ + v2/266 个定义
-codex app-server proxy --sock <PATH>                # stdio 字节代理到已运行的 daemon socket
-codex app-server daemon {start,restart,stop,version}# 托管本地 daemon
-```
+计划：`awaiting_approval → running → reviewed → awaiting_merge`；停止使用 `stop_requested → stopped`。任务：`pending → preparing → running → awaiting_review → accepted`。`waiting_user` 表示 DSH 权限审批未回答，`blocked` 表示明确阻塞，`unknown` 表示无法证明执行结果。
 
-默认 stdio 模式: 父进程 spawn `codex app-server`, 用 JSONL(每行一个 JSON-RPC 消息)通信。
+原始 submit 接口不对外开放；任务由获批计划派发。批准绑定预览 hash；内容变更须另行预览。复核绑定提交、结果和修订号的 reviewHash，复核时再次核对 HEAD 与干净状态。执行方私自提交会触发检查，防止未经审阅的中间历史进入远端。
 
-排除的方案与原因见 §8。
+每个计划/任务有稳定 ID，每轮修订有确定的 job/session/request 身份。服务先保存准备意图，再调用外部系统；重连只查证，不盲目发第二次模型请求。DSH 活跃状态及 turn/end 是运行证据，审批 asked/decided 决定待输入状态。中断准备若不能证明完成则 unknown，保留已创建资源供核查。
 
-## 3. 架构
+记录是执行关联和恢复信息，不替代 Git、issue 或 HANDOFF 的各自事实。文件原子替换、同 ID 串行执行；socket 保证同一部署只有一个服务所有者。本版不支持多主进程协调。
 
-```
-┌──────────────── DSH 宿主进程 (非沙箱) ─────────────────┐
-│  dsh-codex-bridge plugin                               │
-│    ctx.tools.register(codex_plan | codex_ask | …)      │
-│    CodexAppServerClient (src/client.js)                │
-└───────────────┬────────────────────────────────────────┘
-                │ spawn + stdio JSONL (JSON-RPC 2.0)
-                ▼
-      codex app-server  ──►  thread / turn 引擎
-                │
-                ├─ 若接桌面端 daemon: 同一 daemon, 会话在 Codex GUI 可见
-                └─ 若独立子进程: 私有 daemon, GUI 不可见
-```
+## 并行和交接
 
-两个部署形态:
+默认每个计划最多两个执行任务；每个任务独立分支和 worktree。依赖的提交必须先通过复核，再合入下游 worktree。多任务计划追加 integration 子任务，合并所有已接受前置提交并重新验证组合行为。合并冲突保留现场并阻塞，不强行覆盖。
 
-| 形态 | 命令 | 会话在 Codex GUI 可见 | 复杂度 |
-|---|---|---|---|
-| A 私有子进程 | `spawn('codex', ['app-server'])` | 否 | 低, MVP 用这个 |
-| B 接桌面 daemon | `spawn('codex', ['app-server','proxy','--sock',SOCK])` | 是 | 中, 需 daemon 已启动(桌面端运行时通常已启动) |
+每个 worktree 独立 `.handoff/HANDOFF.md`，每轮写入目标、基线、反馈和验证要求；主仓交接不被覆盖。主仓通过 Git info/exclude 忽略 `.worktrees/` 与 `.handoff/`，不改用户已跟踪的忽略文件。
 
-`--sock` 路径默认取自 `$CODEX_HOME/app-server-control/app-server-control.sock`
-(实测: daemon 未运行时 `codex app-server daemon version` 报 `failed to connect to
-/home/river/.codex/app-server-control/app-server-control.sock`)。
+停止先冻结后续派发，再取消对应 DSH agent，清空其未执行队列并等待 whenIdle。整项停止包含全部桥接子任务，单项停止只影响该子任务。保留所有变更与证据。DSH 自己的权限门禁仍有效；桥接不会自动授予 danger-full-access。
 
-## 4. 协议映射(全部来自生成的 schema, 未猜测)
+## 平台交付与边界
 
-### 请求 → Codex
+计划可选 delivery 明确 forge、host、repository、remote、targetBranch；推送 URL 必须指向同一项目。批准后允许 issue、任务提交、推送及草稿 PR/MR，无自动合并。多任务最后的集成分支作为整体交付；所有子任务 HEAD 必须被包含。
 
-| 用途 | 方法 | 关键参数 |
-|---|---|---|
-| 握手 | `initialize` | `clientInfo{name*,title,version*}` |
-| 建会话 | `Thread/start` | `cwd?`, `model?`, `sandbox?`, `approvalPolicy?`, `ephemeral?`, `threadSource?` |
-| 接已有会话 | `Thread/resume` | `threadId*` |
-| 列会话 | `Thread/list` | `cwd?`, `limit?`, `cursor?`, `searchTerm?`, `archived?`, `sortKey?` |
-| 读会话 | `Thread/read` | `threadId*`, `includeTurns?` |
-| 发一轮 | `Turn/start` | `threadId*`, `input*` = `[{type:'text', text*}]` |
-| 插话 | `Turn/steer` | `threadId*`, `expectedTurnId*`, `input*` |
-| 打断 | `Turn/interrupt` | `threadId*` (见 v2 定义) |
-| 注入上下文 | `Thread/injectItems` | `threadId*`, `items*` (原始 Responses API item) |
+issue/PR 创建前持久记录 intent，命令失败后查远端标识；未查明不得重建。正文通过临时文件交给 CLI，保留换行与字面字符。目标分支有新提交则阻止交付，需重新集成。首版拒绝覆盖不同远端分支 HEAD，不强推。
 
-### 通知 ← Codex(需要订阅的)
+工作区范围由计划、隔离目录、DSH 自身沙箱和提交检查共同约束；提交后检查不是额外的操作系统沙箱，不能保证一个违规执行者从未触碰过范围外文件。模型不可把外部文本或另一个模型的答复当成人类批准。
 
-| 用途 | 方法 | 载荷要点 |
-|---|---|---|
-| 逐字回话 | `Item/agentMessage/delta` | `threadId*`, `turnId*`, `itemId*`, `delta*` |
-| **计划更新** | `Turn/plan/updated` | `threadId*`, `turnId*`, `plan*` = `[{step*, status*: pending\|inProgress\|completed}]`, `explanation?` |
-| 一轮结束 | `Turn/completed` | `threadId*`, `turn{id*, status*: completed\|interrupted\|failed\|inProgress, items*, error?}` |
-| 排队消息变化 | `Thread/queue/changed` | 讨论模式的队列语义 |
-| 需要审批 | `ServerRequest` 中的 approval 系列 | `CommandExecutionRequestApprovalParams`, `FileChangeRequestApprovalParams`, `ApplyPatchApprovalParams`, `McpServerElicitationRequestParams` |
+## 验证门槛
 
-关键类型:
+1. 当前 Codex 任务发出请求、真实 DSH 回复返回同一任务。
+2. 实际 session cwd 与指定 worktree 相同，真实创建文件并完成验证。
+3. 同一请求并发/重连不重复派发；新内容复用 ID 被拒绝。
+4. 真实插话和停止；停止请求与完成分开。
+5. Git 基线、脏目录保留、worktree 依赖、复核指纹、修订上限有测试。
+6. 平台 API 适配测试与真实远端联调分开报告。
+7. MCP 配置、MCP 协议测试、桌面工具发现和 UI 浏览验证分开报告。
 
-- `UserInput` = `{type:'text', text*}` | `{type:'image'|'localImage'|'audio'|'localAudio'|'skill'|'mention', …}`
-- `Thread` = `{id*, cwd*, name, model, modelProvider*, ephemeral*, createdAt*, gitInfo?…}`
-- `Turn.status` ∈ `completed | interrupted | failed | inProgress`
-
-## 5. DSH 侧工具面(4 个)
-
-| 工具 | 方向 | 语义 | 默认超时 |
-|---|---|---|---|
-| `codex_plan` | 同步问答 | 让 Codex 只做规划, 返回编号步骤; 不产生写操作 | 5 min |
-| `codex_ask` | 同步问答 | 自由提问, 返回文本 + 计划(若有) | 3 min |
-| `codex_steer` | 单向 | 对正在跑的 turn 插话 / 回答它的反问 | 立即 |
-| `codex_status` | 只读 | 当前线程 id、在跑什么、最近一次计划 | 5 s |
-
-约定:
-
-- 所有工具都**不自动执行** Codex 产出的写操作; 计划只作为 DSH 侧的执行候选, 由 DSH 的审批流程决定。
-- `codex_plan` 的 prompt 前缀固定: 只输出计划, 不修改文件, 不运行命令。
-- 每个工具调用都写一行 JSONL 审计到 `<workspace>/.dsh-codex-bridge/log.jsonl`(threadId, turnId, tool, 耗时, 结果摘要)。
-
-## 6. 生命周期与状态
-
-- **懒启动**: 第一次工具调用才 spawn app-server, 并完成 `initialize`。
-- **线程复用**: 按 `cwd` 缓存 threadId; 找不到就 `Thread/start`。后续 `Thread/resume` 接回。
-- **事件路由**: 单连接多 turn。client 维护 `turnId → pending` 表; delta 累积到该 turn 的文本缓冲, plan 覆盖式保存。
-- **超时**: `Turn/interrupt` 后仍未收到 `Turn/completed` → 工具返回已累积内容 + `timedOut: true`。
-- **失败**: 子进程退出 → 丢弃连接状态, 下次调用重启; 连续 3 次失败 → 工具返回明确错误, 不做静默重试。
-- **审批请求**: MVP 策略 = 一律拒绝并回报给模型(安全默认); 后续可升级为转成 DSH 的 `ask_user_question`。
-
-## 7. 硬约束(实测, 会影响实现位置)
-
-1. **bridge 必须运行在 DSH 宿主进程内, 不能通过沙箱 bash 工具调用。**
-   沙箱内 spawn `codex app-server` 失败:
-   `failed to initialize sqlite state runtime under /home/river/.codex: failed to initialize state runtime`。
-   `CODEX_HOME` 需要写权限(state/logs/queue sqlite)。
-2. **`codex exec` 在嵌套沙箱下不可用。** 当 app-server 的沙箱模式为 `workspace-write` 时,
-   bwrap 无法 bind mount `/run/user/1000/...` 工作区, 直接报
-   `sandbox mode "workspace-write" is requested but no sandbox backend is usable`。
-   规避: `-c sandbox_mode="read-only"` 或 `--sandbox danger-full-access`。
-3. **`codex agents` 需要 TTY**(`ERROR: stdin is not a terminal`), 不能作为编程接口。
-4. **协议标 `[experimental]`**, 升级 Codex 后方法名可能变。用 §4 的 schema 生成做兼容性检查:
-   `scripts/check-protocol.sh` 重新生成 schema 并断言全部方法名仍存在。
-5. 桌面端只在启动时读 `config.toml`; 若要给 Codex 侧加 MCP server, 需要重启桌面端。
-
-## 8. 被排除的方案
-
-| 方案 | 为什么不用 |
-|---|---|
-| MCP 双向挂载 | 只能问答, 无流式、无 `Turn/steer`、无计划事件; 且改 Codex 侧配置要重启桌面端 |
-| `codex exec` 子进程 | 无 GUI 会话、每次冷启动、嵌套沙箱不可用; 只能当降级逃生通道 |
-| `~/.codex/ipc/ipc.sock` | 桌面端私有 socket, 无 schema、版本绑定; 只做连通性探测用 |
-| 读写 thread_history sqlite | 直接改 Codex 私有存储, 跨版本必碎 |
-
-## 9. 目录与配置
-
-```
-dsh-codex-bridge/
-  package.json          # dsh.bundle.patch 指向 cordis.patch.yml
-  cordis.patch.yml      # profile 层: insert 插件 + config + 安装用符号链接命令
-  src/index.js          # Cordis 插件入口: apply/inject/name/Config(schemastery)
-  src/client.js         # CodexAppServerClient: spawn + JSONL + 事件路由
-  src/tools.js          # 4 个工具定义
-  src/protocol.js       # 从 schema 固化的方法名与常量(单一事实来源)
-  scripts/check-protocol.sh  # 协议兼容性检查(重新生成 schema 后断言方法仍在)
-  test/verify.mjs       # 静态自检: ESM 解析 + 清单 + 协议常量 + schema 交叉核对
-  test/load.mjs         # 工具定义自检(需 @deepseek-ai/dsh-tools 可解析)
-  test/smoke.mjs        # 不需 DSH, 直接跑 client 的握手 + Thread/list(+可选 turn)
-  docs/DESIGN.md
-```
-
-未随骨架落地(刻意延后): `src/audit.js`。P1 的审计先走 `ctx.logger.debug`,
-等 P4 需要落盘 JSONL 时再单独成模块, 避免现在多一个空壳文件。
-
-配置项(`cordis.patch.yml` 的 `config`):
-
-| key | 默认 | 说明 |
-|---|---|---|
-| `codexBin` | `codex` | 可执行文件路径 |
-| `codexHome` | 继承环境 | 覆盖 `CODEX_HOME` |
-| `mode` | `private` | `private`(私有子进程) / `daemon`(接桌面 daemon) |
-| `daemonSock` | `$CODEX_HOME/app-server-control/app-server-control.sock` | `mode: daemon` 时使用 |
-| `planTimeoutMs` | `300000` | `codex_plan` 超时 |
-| `askTimeoutMs` | `180000` | `codex_ask` 超时 |
-
-## 10. 分阶段实施
-
-| 阶段 | 内容 | 估时 | 验收 |
-|---|---|---|---|
-| P0 | `client.js` 握手 + `Thread/start` + `Turn/start` + `Turn/completed` 收文本 | 2 h | `node test/smoke.mjs` 打印 BRIDGE_OK |
-| P1 | `codex_plan` + `codex_ask` 工具, 计划渲染 | 2 h | DSH 里问一句, 能拿到计划步骤 |
-| P2 | `Turn/plan/updated` 实时计划 + `codex_steer` | 3 h | 长任务中间能插话, 不改写 |
-| P3 | `mode: daemon` 接桌面端, 会话 GUI 可见 | 3 h | 桌面 Codex 里出现同一线程 |
-| P4 | 审批请求转 DSH 提问 + GUI 计划面板 + 审计 | 1 d | 端到端可围观可接管 |
-
-当前进度(2026-09-23): P0/P1 代码已写, **静态验证通过**(`test/verify.mjs --schema`
-37 项全绿; `scripts/check-protocol.sh` 对 Codex 0.154.0 全绿: 9 methods + 5 notifications)。
-运行态验证(`test/load.mjs`, `test/smoke.mjs --turn`)必须在 DSH 宿主进程/普通 shell 里做,
-本次会话的 bash 沙箱既写不了 `$CODEX_HOME` 也 bind mount 不了工作区。
-
-风险与对策:
-
-- app-server 方法名漂移 → `scripts/check-protocol.sh` 进 CI/手动跑。
-- 桌面 daemon 未运行 → `mode: daemon` 失败时自动降级到 `private`, 并回报 `degraded: true`。
-- 两个 daemon 并存导致 threadId 失效 → 审计记录每次调用的 daemon 身份(`clientInfo.name` + sock 路径)。
+部署与验证证据以 VALIDATION.md 为准。

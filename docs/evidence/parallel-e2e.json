@@ -1,0 +1,128 @@
+{
+  "capturedAt": "2026-09-23T10:54:09.835Z",
+  "planId": "real-parallel-20260923",
+  "state": "reviewed",
+  "base": "361384786cb81c7ea5820c4efabe6767718578ae",
+  "bridge": {
+    "name": "dsh-codex-bridge",
+    "version": "0.2.0",
+    "build": "230b73464f41239b",
+    "transport": "unix",
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "max"
+    },
+    "capabilities": [
+      "baseline.preview",
+      "baseline.confirm",
+      "plan.preview",
+      "plan.approve",
+      "plan.status",
+      "plan.wait",
+      "plan.review",
+      "plan.steer",
+      "plan.stop",
+      "plan.list",
+      "plan.deliver"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "alpha",
+      "state": "accepted",
+      "sessionId": "bridge-dd7f2725ba1ee1cefbd16661e9b2e309",
+      "actualCwd": "/home/river/work/dsh/dsh-codex-bridge/.dsh-codex-bridge/e2e/.worktrees/bridge-real-parallel-20260923-alpha",
+      "worktree": {
+        "path": "/home/river/work/dsh/dsh-codex-bridge/.dsh-codex-bridge/e2e/.worktrees/bridge-real-parallel-20260923-alpha",
+        "branch": "bridge/real-parallel-20260923/alpha",
+        "base": "361384786cb81c7ea5820c4efabe6767718578ae"
+      },
+      "evidence": {
+        "head": "1c83e3aebb778f12efaeffbfb0603ef7114ee1eb",
+        "files": [
+          "alpha.txt"
+        ],
+        "diffStat": "alpha.txt | 1 +\n 1 file changed, 1 insertion(+)",
+        "dirty": ""
+      },
+      "review": {
+        "reviewHash": "307de0a8627f00a28df837bdebb43583933a3f999c406c6972ab21561f884a08",
+        "accepted": true,
+        "feedback": "独立读取实际文件，内容与预期逐字一致；提交只含获批文件，工作区干净。",
+        "evidence": [
+          "/home/river/work/dsh/dsh-codex-bridge/.dsh-codex-bridge/e2e/.worktrees/bridge-real-parallel-20260923-alpha/alpha.txt",
+          "1c83e3aebb778f12efaeffbfb0603ef7114ee1eb"
+        ],
+        "blockerKey": "",
+        "progress": false,
+        "at": "2026-09-23T10:52:56.077Z"
+      },
+      "dshResponse": "已加载交接 2026-09-23T10:51:37.693Z,下一步是 实施 alpha.txt 子任务并验证 —— 已执行完毕,如下。\n\n**子任务完成:alpha.txt 已创建并验证通过**\n\n1. 修改文件:`alpha.txt`(新建,唯一改动)\n2. 验证命令与结果\n\n```\n$ cat alpha.txt\nalpha\n$ wc -c < alpha.txt ; wc -l < alpha.txt\n6\n1\n$ od -c alpha.txt\n0000000   a   l   p   h   a  \\n\n0000006\n$ sha256sum alpha.txt\nb6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060  alpha.txt\n```\n\n3. 验收对照\n   - 内容精确为 `alpha` + 换行:通过(`od` 显示 6 字节 `a l p h a \\n`,无多余字符/CR)\n   - 输出读取结果:通过(`cat` 输出 `alpha`,exit 0)\n\n4. 边界检查\n   - `git status --porcelain` 仅 `?? alpha.txt`;无暂存、无提交(HEAD 仍为 `3613847 test: baseline`)\n   - 未创建其他文件;未新建会话/worktree、未推送、未发布 issue/PR\n   - `.handoff/HANDOFF.md` 未改动(status 保持 `active`,由桥接管理)\n\n5. 未解决问题:无。交接文件第 2 项要求「提交证据供 Codex 复核」,复核动作由桥接/Codex 执行,本执行方不做声明。\n\n下一步(约 10 秒):把上面 `cat` 与 `od -c` 的输出交给 Codex 做独立复核。"
+    },
+    {
+      "id": "beta",
+      "state": "accepted",
+      "sessionId": "bridge-3f11babf5107e17ed89b4a7eb1c41524",
+      "actualCwd": "/home/river/work/dsh/dsh-codex-bridge/.dsh-codex-bridge/e2e/.worktrees/bridge-real-parallel-20260923-beta",
+      "worktree": {
+        "path": "/home/river/work/dsh/dsh-codex-bridge/.dsh-codex-bridge/e2e/.worktrees/bridge-real-parallel-20260923-beta",
+        "branch": "bridge/real-parallel-20260923/beta",
+        "base": "361384786cb81c7ea5820c4efabe6767718578ae"
+      },
+      "evidence": {
+        "head": "093a795e5d74c59abac85c991e921db9cacb2bb7",
+        "files": [
+          "beta.txt"
+        ],
+        "diffStat": "beta.txt | 1 +\n 1 file changed, 1 insertion(+)",
+        "dirty": ""
+      },
+      "review": {
+        "reviewHash": "c56cf122210714c407cd7e730aebd676bda73087df48105f0eb9c892dd60821f",
+        "accepted": true,
+        "feedback": "独立读取实际文件，内容与预期逐字一致；提交只含获批文件，工作区干净。",
+        "evidence": [
+          "/home/river/work/dsh/dsh-codex-bridge/.dsh-codex-bridge/e2e/.worktrees/bridge-real-parallel-20260923-beta/beta.txt",
+          "093a795e5d74c59abac85c991e921db9cacb2bb7"
+        ],
+        "blockerKey": "",
+        "progress": false,
+        "at": "2026-09-23T10:52:56.118Z"
+      },
+      "dshResponse": "已加载交接 2026-09-23T10:51:37.975Z，下一步是实施本子任务并验证。`status: active` 未改为 `consumed`——本任务明确交接文件由桥接管理、执行方只读。\n\n**验收通过。`beta.txt` 内容精确为 `beta` + 换行（5 字节）。**\n\n1. 修改文件：仅新建 `beta.txt`（无其他文件，`.handoff/HANDOFF.md` 未动）\n   - `printf 'beta\\n' > beta.txt` → 5 字节\n\n2. 验证命令与结果：\n   - `cat beta.txt` → 输出 `beta`（换行结尾）\n   - `od -c beta.txt` → `b e t a \\n`，`0000005`\n   - `wc -c < beta.txt` → `5`\n   - `sha256sum beta.txt` → `f2c82decdd7181cf98945929a62598db7e6b477e11f6e0eb0ae97020eff151ad`\n\n3. 状态检查：\n   - `git status --porcelain -uall` → 仅 `?? beta.txt`\n   - `git log --oneline -1` → `3613847 test: baseline`（未提交，HEAD 未变）\n\n未解决项：无。未创建额外会话/worktree/提交，未改动模型设置。\n\n下一步（<2 分钟）：由 Codex 复核 `beta.txt` 内容与上述 sha256。"
+    },
+    {
+      "id": "integration",
+      "state": "accepted",
+      "sessionId": "bridge-5e5dd38e18cbb37a23aabaeebd0d931e",
+      "actualCwd": "/home/river/work/dsh/dsh-codex-bridge/.dsh-codex-bridge/e2e/.worktrees/bridge-real-parallel-20260923-integration",
+      "worktree": {
+        "path": "/home/river/work/dsh/dsh-codex-bridge/.dsh-codex-bridge/e2e/.worktrees/bridge-real-parallel-20260923-integration",
+        "branch": "bridge/real-parallel-20260923/integration",
+        "base": "735b867242e746227a7e11533ef18426f92a0e68"
+      },
+      "evidence": {
+        "head": "735b867242e746227a7e11533ef18426f92a0e68",
+        "files": [],
+        "diffStat": "",
+        "dirty": ""
+      },
+      "review": {
+        "reviewHash": "a3c97f8045cea4247234f721134d23d14357915f30310894ff8bfa000e30dbde",
+        "accepted": true,
+        "feedback": "独立逐字读取组合后的两个文件；核对两个子任务提交均为集成 HEAD 祖先，Git 工作区干净。",
+        "evidence": [
+          "/home/river/work/dsh/dsh-codex-bridge/.dsh-codex-bridge/e2e/.worktrees/bridge-real-parallel-20260923-integration/alpha.txt",
+          "/home/river/work/dsh/dsh-codex-bridge/.dsh-codex-bridge/e2e/.worktrees/bridge-real-parallel-20260923-integration/beta.txt",
+          "git merge-base --is-ancestor: both child heads passed",
+          "git status --porcelain: clean"
+        ],
+        "blockerKey": "",
+        "progress": false,
+        "at": "2026-09-23T10:54:09.833Z"
+      },
+      "dshResponse": "I'll start by reading the handoff file and project rules, then verify the two files.\n已加载交接 2026-09-23T10:52:56.197Z,下一步是 组合后集成验证 — 验收通过。\n\n**结论:ACCEPT PASS** — alpha.txt 与 beta.txt 同时存在、内容正确,且未创建或修改任何其他文件。本次为只读验证,零写入。\n\n**修改文件**:无(验证任务,仅只读命令)。.handoff/HANDOFF.md 保持 `status: active` 未动,由桥接管理。\n\n**验证命令与结果**\n\n| # | 命令 | 结果 |\n|---|---|---|\n| 1 | `test -f alpha.txt beta.txt` | 两者均存在 |\n| 2 | `od -c alpha.txt` / `od -c beta.txt` | 精确字节 `a l p h a \\n` / `b e t a \\n`(6B / 5B) |\n| 3 | `sha256sum alpha.txt beta.txt` | `b6a98d9c…b51060` / `f2c82dec…f151ad` |\n| 4 | `git diff-index --quiet HEAD -- alpha.txt beta.txt` | 与 HEAD 完全一致(无未提交差异) |\n| 5 | `git status --porcelain -uall` | 空,无其他改动、无新增文件 |\n| 6 | `git diff --name-status 3613847 HEAD` | 仅 `A alpha.txt`、`A beta.txt` |\n| 7 | `git merge-base --is-ancestor 1c83e3a\\|093a795 HEAD` | 两个子任务提交均为 HEAD 祖先,均已组合 |\n| 8 | `git show <commit>:<file>` 交叉检查 | `1c83e3a` 仅有 alpha.txt、无 beta.txt;`093a795` 仅有 beta.txt、无 alpha.txt;基线 `3613847` 两者皆无 → 两个会话真正隔离并行 |\n| 9 | 冲突标记扫描 `^(<<<<<<<\\|=======\\|>>>>>>>)` | 无 |\n| 10 | 验证后再次 `git status` + mtime | 干净;三个文件 mtime 仍为 18:52:56(创建时间),证明验证过程未写入 |\n\n**组合行为**:HEAD = `735b867`(分支 `bridge/real-parallel-20260923/integration`),两个子任务成果同时落盘且互不覆盖,合并无冲突、无内容丢失。\n\n**未解决问题**:无。超出计划范围、需用户决定或权限变化的事项均未遇到;未创建额外会话/worktree/提交/推送。\n\n**下一步(2 分钟内)**:把上面第 10 行的 HEAD 哈希 `735b867` 与两份 sha256 交给 Codex 复核。"
+    }
+  ]
+}

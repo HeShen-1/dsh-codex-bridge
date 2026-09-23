@@ -1,0 +1,77 @@
+{
+  "checkedAt": "2026-09-23T10:59:32.825Z",
+  "sourceBuild": "7883a60748497f94",
+  "hello": {
+    "name": "dsh-codex-bridge",
+    "version": "0.2.0",
+    "build": "7883a60748497f94",
+    "transport": "unix",
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "max"
+    },
+    "capabilities": [
+      "baseline.preview",
+      "baseline.confirm",
+      "plan.preview",
+      "plan.approve",
+      "plan.status",
+      "plan.wait",
+      "plan.review",
+      "plan.steer",
+      "plan.stop",
+      "plan.list",
+      "plan.deliver"
+    ]
+  },
+  "node": "v26.8.1",
+  "codex": "codex-cli 0.154.0",
+  "mcp": {
+    "configured": true,
+    "command": "node",
+    "args": [
+      "/home/river/work/dsh/dsh-codex-bridge/bin/mcp.mjs"
+    ],
+    "protocol": "2025-06-18",
+    "tools": [
+      "dsh_bridge_status",
+      "dsh_baseline_preview",
+      "dsh_baseline_confirm",
+      "dsh_plan_preview",
+      "dsh_plan_approve",
+      "dsh_plan_status",
+      "dsh_plan_wait",
+      "dsh_plan_review",
+      "dsh_plan_steer",
+      "dsh_plan_stop",
+      "dsh_plan_deliver",
+      "dsh_plan_list"
+    ],
+    "realInstalledService": true,
+    "desktopToolDiscovery": false
+  },
+  "socketMode": "600",
+  "regression": {
+    "passed": 23,
+    "failed": 0
+  },
+  "plans": [
+    {
+      "id": "real-e2e-20260923",
+      "state": "stopped"
+    },
+    {
+      "id": "real-e2e-fixed-20260923",
+      "state": "reviewed"
+    },
+    {
+      "id": "real-e2e-local-20260923",
+      "state": "stopped"
+    },
+    {
+      "id": "real-parallel-20260923",
+      "state": "reviewed"
+    }
+  ]
+}

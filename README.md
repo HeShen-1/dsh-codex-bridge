@@ -1,83 +1,108 @@
-# dsh-codex-bridge
+# DSH Codex Bridge
 
-DSH ⇄ Codex 桥: Codex 规划, DeepSeek 执行, 两边可以互相讨论。
+Codex 桌面端规划与复核，DSH 实施与验证。个人同机插件，使用 Git worktree 隔离任务；模型和推理设置完全由用户在两端管理。
 
-走 **Codex app-server JSON-RPC 协议**(`codex app-server`, 协议有官方 schema 可生成),
-不是 MCP, 不是 `codex exec`, 不碰私有 socket。设计与证据见 [docs/DESIGN.md](docs/DESIGN.md)。
+## 当前能力
 
-## 状态
+- 预览计划 → 一次批准目标、文件范围、验收及可选远端交付 → DSH 执行 → Codex 独立复核。
+- 每个子任务独立 worktree；默认同一计划最多 2 个并行执行。依赖任务等待前置复核通过。多任务计划自动增加组合后的集成验证。
+- 没有 Git 就初始化；首次提交需要确认文件清单和内容指纹。原目录未提交修改保持原样，worktree 基于已提交 HEAD。
+- 稳定任务 ID 和 DSH requestId 去重；持久保存派发意图，未知执行状态先查证，禁止盲目重发。
+- 支持插话、整项计划或单子任务停止；确认 DSH 空闲后才标记停止。
+- 首次实施后整个计划最多 3 次自动修订；连续两次同类阻塞无进展即停。不会通过换任务 ID 重置限制。
+- GitHub / GitLab 可选 issue、任务分支推送、草稿 PR/MR；不合并，不自动创建远端仓库。
+- DSH 审批仍遵守其原有策略；桥接状态会显示待审批。到 DSH 回答后继续，或在 Codex 停止任务。插件不会自动批准完整访问权限。
 
-Skeleton / v0.1 — 设计已定型, 协议常量全部从生成 schema 固化。实现进度:
+实现与验证等级见 [docs/VALIDATION.md](docs/VALIDATION.md)。第三方平台的真实发布、桌面 MCP 工具自动发现和 UI 可见性分别记录，不能由本地测试替代。
 
-| 阶段 | 内容 | 状态 |
-|---|---|---|
-| P0 | client 握手 + Thread/start + Turn/start + 收文本 | 已写, 待实测 |
-| P1 | `codex_plan` / `codex_ask` 工具 | 已写, 待实测 |
-| P2 | 实时计划 + `codex_steer` | 接口已定义, 行为待接 |
-| P3 | `mode: daemon` 接桌面端 | 参数已支持, 未联调 |
-| P4 | 审批转 DSH 提问 + GUI 面板 + 审计 | 未开始 |
+## 连接方式
 
-## 四个工具
-
-| 工具 | 作用 | 关键参数 |
-|---|---|---|
-| `codex_plan` | 让 Codex 只出计划, 不执行 | `prompt`, `cwd?` |
-| `codex_ask` | 自由问答 / 让 Codex 复核 | `prompt`, `cwd?` |
-| `codex_steer` | 对正在跑的 turn 插话 | `threadId`, `turnId`, `message` |
-| `codex_status` | 桥状态 / 线程列表 | `listThreads?` |
-
-Codex 在这条桥上永远以 `sandbox: read-only` + `approvalPolicy: never` 运行:
-它只能看和说, 不能写。计划回到 DSH 后, 写不写由 DSH 侧决定。
-
-## 安装(三步)
-
-1. 复制并链接插件:
-   ```bash
-   cp -r dsh-codex-bridge ~/.dsh/local-plugins/
-   ln -s ../../../local-plugins/dsh-codex-bridge ~/.dsh/profiles/web/node_modules/dsh-codex-bridge
-   ```
-2. 链接两个运行时依赖(`dsh-tools`, `schemastery`), 命令见 [cordis.patch.yml](cordis.patch.yml) 顶部注释。
-3. 在 `~/.dsh/profiles/web/cordis.patch.yml` 追加 mount 行, 见 [cordis.patch.yml](cordis.patch.yml) 末尾。
-
-`mode` 选择:
-
-- `private`(默认): 插件自己 spawn `codex app-server`, Codex 会话不出现在桌面端。
-- `daemon`: 走 `codex app-server proxy --sock $CODEX_HOME/app-server-control/app-server-control.sock`,
-  接入桌面端正在跑的 daemon, 会话在 Codex GUI 可见 → **讨论/围观模式用这个**。
-
-## 验证
-
-```bash
-node test/verify.mjs            # 静态自检: ESM 语法 + 清单 + 协议常量 (37 项)
-node test/verify.mjs --schema <schema目录>   # 追加: 与生成的 schema 交叉核对
-node test/load.mjs              # 工具定义自检, 需要能解析 @deepseek-ai/dsh-tools
-node test/smoke.mjs             # 握手 + Thread/list
-node test/smoke.mjs --turn      # 跑一个只读 turn, 断言回复含 BRIDGE_OK
-bash scripts/check-protocol.sh  # Codex 升级后跑, 检查协议是否漂移
+```text
+Codex 当前桌面任务
+  └─ MCP 工具（或本任务中的 CLI）
+       └─ 当前用户私有 Unix socket
+            └─ DSH Web profile 内的桥接插件
+                 └─ SessionController / Agent / Git worktree
 ```
 
-当前状态(2026-09-23): `test/verify.mjs --schema` 全绿 37 项; `scripts/check-protocol.sh`
-对 Codex 0.154.0 全绿(9 methods + 5 notifications)。
-`test/smoke.mjs` 与 `test/load.mjs` 尚未在 DSH 宿主进程里跑过 —— 见「下一步」。
+Codex 的结果通过当前工具调用返回原任务。无需另建 Codex 会话、启动 Codex app-server、使用桌面私有 IPC 或写两端私有会话存储。
 
-**必须在普通 shell 里跑**, 不要在 DSH 的沙箱 bash 工具里跑:
-沙箱内 `codex app-server` 无法写 `$CODEX_HOME`, 启动即失败
-(`failed to initialize sqlite state runtime under /home/river/.codex`)。
-本工作区本身是 FUSE 只读挂载(`portal on /run/user/1000/doc type fuse.portal (ro…)`),
-`bwrap` 也无法 bind mount 它, 所以 DSH 沙箱里连 `node --check` 都可能报
-`sandbox mode "workspace-write" is requested but no sandbox backend is usable`。
+桥接记录按任务关联执行身份，不把一个 Codex 会话固定绑定一个 DSH 会话。两端可继续用原有 UI；插件不替换它们。Codex 必须保持协调轮次，通过 `dsh_plan_wait` 等待和复核；关闭或结束 Codex 任务后，插件不会自行唤醒模型或伪造用户消息。
 
-## 下一步(P0 收尾)
+## 本机安装
 
-1. 按 `cordis.patch.yml` 顶部注释链接插件与两个依赖。
-2. 在普通 shell 里跑 `node test/load.mjs` → 确认 `dsh-tools` 能解析、四个工具注册成功。
-3. `node test/smoke.mjs --turn` → 确认 `BRIDGE_OK`。
-4. 把 mount 行加进 `~/.dsh/profiles/web/cordis.patch.yml`, 重启 DSH, 在对话里调 `codex_status`。
+需要 Node >=22.16、Git、已启动的 DSH Web profile。本版对 DSH `0.1.7-alpha.2` 的 SessionController / WorkspaceController API 做过运行验证；其他版本先核对接口。
 
+```sh
+npm test
+node scripts/install-local.mjs
+node bin/bridge.mjs hello
+codex mcp add dsh-codex-bridge -- node /absolute/path/dsh-codex-bridge/bin/mcp.mjs
+```
 
-## 已知约束
+安装器只替换 profile 中带标记的桥接挂载块，并保存配置备份；源代码复制为不可变版本路径以避免 ESM 缓存残留。profile 必须启用 `patchReload: live`。更新前先完成或明确停止活跃桥接计划。没有自动重启 DSH 的后备路径。
 
-1. app-server 协议标 `[experimental]`; 升级 Codex 后先跑 `scripts/check-protocol.sh`。
-2. 桥必须跑在 DSH 宿主进程内, 不能经由沙箱 bash 调用。
-3. 桌面端只在启动时读 `config.toml`; 若给 Codex 侧加 MCP server 需重启桌面端。
-4. MVP 策略: 一律拒绝 Codex 发来的审批请求(安全默认), 后续改为转成 DSH 的提问。
+Codex 安装后需要让应用重新加载 MCP 配置；当前任务若未发现新工具，可以使用同一服务的 CLI。**配置存在不等于应用已加载工具**。
+
+socket 默认 `~/.dsh/codex-bridge/bridge.sock`，权限 0600；记录目录权限 0700。可用 `DSH_HOME` 或 `DSH_CODEX_BRIDGE_SOCKET` 指定路径，MCP 客户端与插件必须一致。不要在多个 DSH 进程中共用同一 socket。
+
+## 使用
+
+向 Codex 描述目标，让它展示计划并取得你的批准。工具描述包含执行、独立复核和停止规则。可直接说：
+
+> 在当前仓库用 DSH 实现这个功能。先列出文件范围、子任务、依赖和验收要求给我确认，完成后回到这里复核。不要发布远端。
+
+CLI 与 MCP 共享接口；参数从 JSON 文件读取，避免 shell 插值：
+
+```sh
+node bin/bridge.mjs plan.preview /path/plan.json
+node bin/bridge.mjs plan.approve /path/approval.json
+node bin/bridge.mjs plan.status /path/id.json
+node bin/bridge.mjs plan.wait /path/id.json
+node bin/bridge.mjs plan.stop /path/id.json
+```
+
+最小计划：
+
+```json
+{
+  "id": "feature-001",
+  "cwd": "/absolute/repository/root",
+  "goal": "实现一个已确认的功能",
+  "sourceTask": "originating-codex-task-id",
+  "tasks": [
+    {
+      "id": "implementation",
+      "title": "实现功能与验证",
+      "prompt": "具体要求及约束",
+      "files": ["src/example.js", "test/example.test.js"],
+      "acceptance": ["运行指定测试并报告结果"],
+      "dependsOn": []
+    }
+  ]
+}
+```
+
+`files` 是精确相对文件路径，或以 `/` 结尾的目录范围；不支持 glob。计划 ID 在本机桥接记录中唯一。同一 ID 不同内容会被拒绝。批准参数是 `{"id":"feature-001","hash":"预览返回的 hash"}`。`plan.status` 返回 `nextAction`、任务状态、会话、worktree、真实回复及提交证据。
+
+可选 `delivery` 必须在批准前指定完整目标：
+
+```json
+{
+  "forge": "github",
+  "host": "github.com",
+  "repository": "owner/repo",
+  "remote": "origin",
+  "targetBranch": "main"
+}
+```
+
+GitLab 使用 `"forge":"gitlab"` 和实际 Web/API 主机。沿用已认证的 `gh` / `glab`，不读取或复制密钥。Git 推送目标必须与此仓库一致。没有远端配置的计划仍可本地交付。
+
+复核须传当前 `reviewHash`、判断、反馈和证据引用。执行方自报通过不是验收依据。目标分支推进后会阻止发布，需重新集成与复核。远端创建结果不明时保留意图，不盲目创建第二份 issue/PR。草稿 PR 返回后由 Codex 附加到当前任务；用户自行决定合并。
+
+## 恢复与卸载
+
+`plan.list` 找到任务后查 `plan.status`。`unknown`、中断的准备阶段、冲突和范围越界需要检查已有文件、分支及远端事实；本版保守停止，不自动回滚或再次执行不明操作。不要删记录后重发来绕过去重。
+
+卸载前停止活跃任务，再移除 profile 中 `BEGIN/END dsh-codex-bridge managed mount` 块，并执行 `codex mcp remove dsh-codex-bridge`。已产生的 worktree、提交、执行记录和配置备份保留，供人工处理。

@@ -1,12 +1,12 @@
 {
   "name": "dsh-codex-bridge",
-  "description": "Bridge the DeepSeek Harness to Codex (CLI / desktop) over the codex app-server JSON-RPC protocol: Codex plans, DSH executes, both sides can discuss.",
-  "version": "0.1.0",
+  "description": "Local DSH plugin and Codex MCP bridge for approved Git worktree execution and independent review.",
+  "version": "0.2.0",
   "type": "module",
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js",
-    "./client": "./src/client.js",
+    "./transport": "./src/transport.js",
     "./package.json": "./package.json"
   },
   "dsh": {
@@ -15,8 +15,24 @@
     }
   },
   "scripts": {
-    "smoke": "node test/smoke.mjs",
-    "check-protocol": "bash scripts/check-protocol.sh"
+    "test": "node --test test/*.test.mjs",
+    "smoke": "node bin/bridge.mjs hello",
+    "install:local": "node scripts/install-local.mjs"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "bin": {
+    "dsh-codex-bridge": "bin/bridge.mjs",
+    "dsh-codex-mcp": "bin/mcp.mjs"
+  },
+  "engines": {
+    "node": ">=22.16"
+  },
+  "files": [
+    "src/",
+    "bin/",
+    "scripts/install-local.mjs",
+    "cordis.patch.yml",
+    "README.md",
+    "docs/"
+  ]
 }
