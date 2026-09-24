@@ -2,9 +2,9 @@
 
 ## 2026-09-24：Codex 桌面定时跟进与心跳
 
-当前 Codex 桌面任务已创建并启用每分钟本地定时跟进（自动化 ID `dsh`），使用已持久化的 DSH 收件箱；无待处理请求时保持安静。新增 `codex.report` / `codex.status` 将最近核验时的桌面任务 ID、状态、时间按 Git 仓库存储；侧栏超过两分钟显示过期。此机制依赖 Codex 桌面应用与 DSH Web 运行，不提供瞬时状态或立即推送。对 DSH 新请求的实际下一次定时唤醒与状态回写，仍待真实 DSH Web Host 重启后验证。
+当前 Codex 桌面任务已创建并启用每分钟本地定时跟进（自动化 ID `dsh`），使用已持久化的 DSH 收件箱；无待处理请求时保持安静。新增 `codex.report` / `codex.status` 将最近核验时的桌面任务 ID、状态、时间按 Git 仓库存储；侧栏超过两分钟显示过期。此机制依赖 Codex 桌面应用与 DSH Web 运行，不提供瞬时状态或立即推送。用户重启两端后，当前 Codex 桌面任务直接发现全部 17 个 MCP 工具，`dsh_bridge_status` 返回真实 DSH Host 0.5.0；`dsh_codex_report` 写入本任务 ID、`active` 和服务端核验时间，真实 DSH 会话右侧栏显示对应 ID、时间及“核验时状态”。同一侧栏已提交只限连通性的测试请求 `request-38a9402352caabfe50fedd35cdc10d6b`，状态为 `requested`。因核验时当前 Codex 任务保持运行，它尚未由定时跟进处理；要在任务空闲后的下一次定时运行核对自动唤醒和回复。
 
-`pnpm run typecheck` 和 `pnpm test` 28/28 通过，新增测试覆盖心跳持久化、非法状态拒绝与 MCP 工具目录。独立启动的公开 Codex app-server 在 `mcpServerStatus/list` 中发现 `dsh-codex-bridge` 的 17 个工具，包括 `dsh_review_inbox`、`dsh_codex_status`、`dsh_codex_report`；这是新 app-server 进程的发现证据。**本条正在运行的 Codex 桌面任务工具清单仍只有旧 12 项**，尚不能声称当前桌面任务动态刷新成功；需桌面任务重新加载工具后复核。
+`pnpm run typecheck` 和 `pnpm test` 28/28 通过，新增测试覆盖心跳持久化、非法状态拒绝与 MCP 工具目录。独立启动的公开 Codex app-server 在 `mcpServerStatus/list` 中发现 `dsh-codex-bridge` 的 17 个工具，包括 `dsh_review_inbox`、`dsh_codex_status`、`dsh_codex_report`；这是新 app-server 进程的发现证据。重启前本条 Codex 桌面任务只有旧 12 项；重启后当前任务直接暴露 17 项并成功调用 `dsh_review_inbox`、`dsh_codex_status`、`dsh_codex_report`。这证明重新加载后发现成功；未证明不中断任务的热刷新。
 
 ## 2026-09-24：v0.4 原生插件、侧栏与 TypeScript
 
