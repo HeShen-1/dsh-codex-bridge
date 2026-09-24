@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-09-24T01:10:44.735Z",
+  "version": "0.3.0",
+  "sourceBuild": "d30ea914aed0a813",
+  "installedBuild": "d30ea914aed0a813",
+  "socketMode": "600",
+  "codexMcpConfigured": true,
+  "mcpProtocol": "2025-06-18",
+  "mcpTools": [
+    "dsh_bridge_status",
+    "dsh_baseline_preview",
+    "dsh_baseline_confirm",
+    "dsh_plan_preview",
+    "dsh_plan_approve",
+    "dsh_plan_status",
+    "dsh_plan_wait",
+    "dsh_plan_review",
+    "dsh_plan_steer",
+    "dsh_plan_stop",
+    "dsh_plan_deliver",
+    "dsh_review_inbox",
+    "dsh_review_status",
+    "dsh_review_respond",
+    "dsh_plan_list"
+  ],
+  "realMcpInboxRequests": 2,
+  "realMcpResponded": 2,
+  "desktopExistingBridgeToolCallable": true,
+  "desktopNewToolDiscoveryVerified": false,
+  "regressionPassed": 25
+}

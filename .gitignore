@@ -7,3 +7,6 @@ node_modules/
 .dsh-codex-bridge/
 coverage/
 *.tgz
+
+# Generated test JS is rebuilt by pnpm test; the distributed plugin needs lib/src and lib/client.js only.
+lib/test/

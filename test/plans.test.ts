@@ -204,6 +204,7 @@ test("baseline confirms exact content and excludes credentials", async (t) => {
   await writeFile(join(dir, "a.txt"), "first");
   await writeFile(join(dir, ".env"), "TEST_SECRET=do-not-stage");
   let b = await baselinePreview({ cwd: dir });
+  if (!("files" in b)) throw new Error("expected baseline preview");
   assert.deepEqual(b.files, ["a.txt"]);
   assert.deepEqual(b.excluded, [".env"]);
   await writeFile(join(dir, "a.txt"), "changed");
@@ -211,6 +212,7 @@ test("baseline confirms exact content and excludes credentials", async (t) => {
   await git(dir, "config", "user.name", "Bridge Test");
   await git(dir, "config", "user.email", "bridge@example.invalid");
   b = await baselinePreview({ cwd: dir });
+  if (!("files" in b)) throw new Error("expected baseline preview");
   assert.ok((await baselineConfirm(b)).base);
   assert.equal(await git(dir, "ls-files"), "a.txt");
 });

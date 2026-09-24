@@ -21,7 +21,7 @@ async function fixture(t, committed = true) {
       "-m",
       "test baseline",
     );
-  const backend = {
+  const backend: any = {
     calls: 0,
     events: [],
     running: true,
@@ -138,7 +138,7 @@ test("DSH adapter passes actual workspaceId and verifies persisted cwd before se
   const { dir } = await fixture(t);
   const { DshBackend } = await import("../src/dsh-backend.js");
   let captured;
-  const ctx = {
+  const ctx: any = {
     workspaceController: {
       async create() {
         return { workspace: { workspaceId: "workspace-real", path: dir } };

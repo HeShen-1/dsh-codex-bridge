@@ -1,5 +1,5 @@
 # DSH bundle mount. Install the package through the profile's plugin manager.
-# For local development use: node scripts/install-local.mjs
+# Install with: dsh plugin --profile web add /path/to/dsh-codex-bridge
 - insert:
     - id: codex-bridge
       name: 'dsh-codex-bridge'

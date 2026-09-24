@@ -1,6 +1,7 @@
 import { realpath } from "node:fs/promises";
 // DSH's public SessionController/Agent services own the agent loop and settings.
 export class DshBackend {
+  ctx: any;
   constructor(ctx) {
     this.ctx = ctx;
   }

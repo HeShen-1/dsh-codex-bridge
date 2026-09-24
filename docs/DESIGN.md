@@ -1,4 +1,4 @@
-# DSH–Codex 桥接设计 v0.2
+# DSH–Codex 桥接设计 v0.4
 
 2026-09-23，用户确认 Q1–Q17 及最终实施方案。旧 v0.1 骨架保留在 Git 初始提交 `04bc211`。本文件描述现行设计，不把未验证部分写成可用保证。
 
@@ -8,16 +8,20 @@ Codex 桌面真实任务是入口；Codex 规划、只读复核，DSH 修改与�
 
 ## 入口与所有权
 
-- `src/index.js`：DSH Cordis 插件，注入公开的 SessionController、WorkspaceController、Agent 与默认模型服务。
-- `src/transport.js`：同用户 Unix HTTP socket；只接受 `/rpc`，禁止浏览器 Origin，不监听网络端口。
-- `bin/mcp.mjs` / `src/mcp-tools.js`：Codex MCP 工具及人类授权、独立复核说明。CLI 调用同一服务。
-- `src/dsh-backend.js`：DSH 适配器；使用 `workspace.workspaceId`，创建后查真实 session cwd，匹配获批 worktree 才发送请求。不调用 selectModel。
-- `src/jobs.js`：先持久保存身份再派发，串行处理相同 ID；DSH requestId 负责消息去重。模型完成为 submitted，不等于 accepted。
-- `src/repository.js`：基线确认、worktree、内容与文件范围检查、Git checkpoint。
-- `src/plans.js`：获批计划、依赖和并发调度、复核、整体修订预算、停止及状态恢复。
-- `src/forge.js`：显式 GitHub/GitLab 目标、远端创建意图、查重、推送验证和草稿交付；无合并入口。
+- `src/index.ts`：DSH Cordis 插件，注入公开的 SessionController、WorkspaceController、Agent 与默认模型服务。
+- `src/transport.ts`：同用户 Unix HTTP socket；只接受 `/rpc`，禁止浏览器 Origin，不监听网络端口。
+- `src/mcp-server.ts` / `src/mcp-tools.ts`：Codex MCP 工具及人类授权、独立复核说明。CLI 调用同一服务。
+- `src/dsh-backend.ts`：DSH 适配器；使用 `workspace.workspaceId`，创建后查真实 session cwd，匹配获批 worktree 才发送请求。不调用 selectModel。
+- `src/jobs.ts`：先持久保存身份再派发，串行处理相同 ID；DSH requestId 负责消息去重。模型完成为 submitted，不等于 accepted。
+- `src/repository.ts`：基线确认、worktree、内容与文件范围检查、Git checkpoint。
+- `src/plans.ts`：获批计划、依赖和并发调度、复核、整体修订预算、停止及状态恢复。
+- `src/forge.ts`：显式 GitHub/GitLab 目标、远端创建意图、查重、推送验证和草稿交付；无合并入口。
+- `src/codex-heartbeat.ts`：按 Git common-dir 存储 Codex 桌面任务最近核验时间和当时状态；侧栏超过两分钟提示过期。
+- `src/dsh-tools.ts` 与 `src/review-inbox.ts`：DSH 原生 Tool 主动发起一般请求或送审、带真实会话身份的持久收件箱、Codex MCP 读取和回复。独立请求绑定 Git 文件指纹；计划内请求必须匹配执行会话，正式结论仍由 plan.review 写入。
 
 不读取 Codex 私有 socket，不写两端私有会话数据库。使用公开 DSH 服务读取会话事件；本机调查过程中曾只读检查专用测试会话的持久日志，运行实现不依赖其存储格式。
+
+DSH 的工作区成员资格要求 SessionHeader.cwd 与工作区规范路径相等；它不允许在一个侧栏工作区下挂载多个 cwd 不同的 worktree。并行改动仍采用独立 worktree；同一工作区的多会话测试必须共用该目录，不应冒充隔离执行。
 
 ## 状态与幂等
 
@@ -56,3 +60,7 @@ issue/PR 创建前持久记录 intent，命令失败后查远端标识；未查�
 7. MCP 配置、MCP 协议测试、桌面工具发现和 UI 浏览验证分开报告。
 
 部署与验证证据以 VALIDATION.md 为准。
+
+## 原生插件与浏览器界面
+
+源代码迁为 TypeScript/TSX，构建出 Node ESM `lib/src/` 和 DSH Web 懒加载 `lib/client.js`。`dsh.bundle` 由插件管理器加入 profile，`dsh.client` 注册右侧栏 tab。Host 通过 DSH Connection 的认证 Fetch 路由 `/api/codex-bridge` 暴露当前会话的桥接状态和人工送审入口，不开新的未认证网络端口。当前展示 DSH 工作区注册表中的真实会话归属、桥接计划状态、来源任务 ID 与收件箱，并区分一般请求与完成验收；Codex 桌面任务通过每分钟定时跟进主动读收件箱并回写核验时间与当时状态；它是近实时、自报的桥接心跳，不是直连桌面任务的瞬时运行状态。

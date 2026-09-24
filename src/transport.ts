@@ -91,7 +91,7 @@ export async function listen(socketPath, invoke) {
         if (bytes > 1_000_000) throw new Error("Request too large");
         chunks.push(chunk);
       }
-      const { method, params } = JSON.parse(Buffer.concat(chunks));
+      const { method, params } = JSON.parse(Buffer.concat(chunks).toString("utf8"));
       res.end(JSON.stringify({ result: await invoke(method, params || {}) }));
     } catch (error) {
       res.statusCode = 400;
@@ -104,7 +104,7 @@ export async function listen(socketPath, invoke) {
   });
   await new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(socketPath, resolve);
+    server.listen(socketPath, () => resolve(undefined));
   });
   await chmod(socketPath, 0o600);
   return async () => {

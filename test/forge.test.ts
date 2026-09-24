@@ -37,6 +37,7 @@ test("reject remote destination mismatch before invoking forge CLI", async (t) =
   await assert.rejects(
     new Forge(async () => {
       calls++;
+      return "";
     }).validate(p),
     { code: "REMOTE_MISMATCH" },
   );
@@ -45,7 +46,7 @@ test("reject remote destination mismatch before invoking forge CLI", async (t) =
 for (const platform of ["github", "gitlab"])
   test(`${platform} issue uses exact body-file content and reconciles lost response`, async (t) => {
     const plan = await fixture(t, platform);
-    const task = {
+    const task: any = {
       id: "a",
       title: "Test $() `literal`",
       prompt: "Line one\nLine two",

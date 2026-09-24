@@ -38,6 +38,7 @@ function address(value) {
   };
 }
 export class Forge {
+  run: typeof command;
   constructor(run = command) {
     this.run = run;
   }

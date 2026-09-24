@@ -20,15 +20,15 @@ test("MCP initialize, tools/list and tools/call reach the bridge service", async
     stdio: ["pipe", "pipe", "pipe"],
   });
   t.after(() => child.kill());
-  const pending = new Map();
+  const pending = new Map<number, (response: any) => void>();
   createInterface({ input: child.stdout }).on("line", (l) => {
     const m = JSON.parse(l);
     pending.get(m.id)?.(m);
   });
   let id = 0;
-  async function call(method, params) {
+  async function call(method: string, params: any = {}): Promise<any> {
     const key = ++id;
-    return new Promise((resolve, reject) => {
+    return new Promise<any>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("MCP timeout")), 3000);
       pending.set(key, (r) => {
         clearTimeout(timer);
@@ -46,6 +46,9 @@ test("MCP initialize, tools/list and tools/call reach the bridge service", async
   );
   const names = (await call("tools/list")).result.tools.map((x) => x.name);
   assert.ok(names.includes("dsh_plan_approve"));
+  assert.ok(names.includes("dsh_review_inbox"));
+  assert.ok(names.includes("dsh_codex_status"));
+  assert.ok(names.includes("dsh_codex_report"));
   assert.ok(!names.includes("dsh_submit"));
   const reply = await call("tools/call", {
     name: "dsh_bridge_status",
